@@ -1,0 +1,110 @@
+def bche_interaction_analyzer():
+    """Comprehensive BChE Analyzer with Variant & Comorbidity Effects"""
+    
+    BIOCHEM_DB = {
+        'substrates': {
+            'acetylthiocholine': {'Vmax': 450, 'Km': 0.15, 'Kss': 28.0, 'b': 1.8, 'clinical_range': (0.1, 10)},
+            'butyrylthiocholine': {'Vmax': 380, 'Km': 0.08, 'Kss': 32.0, 'b': 2.1, 'clinical_range': (0.5, 5)},
+            'succinylcholine': {'Vmax': 520, 'Km': 0.12, 'clinical_range': (0.05, 2)},
+            'cocaine': {'Vmax': 85, 'Km': 0.25, 'clinical_range': (0.01, 1)},
+            'procaine': {'Vmax': 210, 'Km': 0.30, 'clinical_range': (0.1, 3)}
+        },
+        'variants': {
+            'A': 0.3, 'K': 0.7, 'F1': 0.1, 'F2': 0.15, 
+            'S1': 0.0, 'J': 0.6, 'H': 0.5
+        },
+        'comorbidities': {
+            'liver_disease': 0.5, 'pregnancy': 0.8, 'severe_burns': 0.4,
+            'COVID-19': 0.65, 'trauma': 0.55, 'malnutrition': 0.7,
+            'Alzheimers': 0.9, 'obesity': 1.2
+        }
+    }
+
+    def calculate_velocity(params, conc):
+        """Modified Haldane equation with substrate activation"""
+        try:
+            vmax = params['Vmax']
+            km = params['Km']
+            if conc < 0: raise ValueError("Negative concentration!")
+            
+            if 'Kss' in params and conc > km:
+                return (vmax * conc * params['b']) / (km + conc + (conc**2)/params['Kss'])
+            return (vmax * conc) / (km + conc)
+        except KeyError as e:
+            print(f"Missing parameter: {e}")
+            return None
+
+    def get_inputs():
+        """Handle all user inputs with validation"""
+        print("\nAvailable Substrates:", ", ".join(BIOCHEM_DB['substrates']))
+        substrate = input("Enter substrate: ").lower()
+        while substrate not in BIOCHEM_DB['substrates']:
+            print("Invalid! Choose:", ", ".join(BIOCHEM_DB['substrates']))
+            substrate = input("Enter substrate: ").lower()
+
+        print("\nGenetic Variants:", ", ".join(BIOCHEM_DB['variants']))
+        variant = input("Enter variant (or 'none'): ").upper()
+        
+        print("\nComorbidities:", ", ".join(BIOCHEM_DB['comorbidities']))
+        comorbidity = input("Enter comorbidity (or 'none'): ").lower()
+
+        try:
+            conc = float(input("Substrate concentration (mM): "))
+        except ValueError:
+            print("Invalid concentration!")
+            return None
+            
+        return substrate, variant, comorbidity, conc
+
+    def adjust_parameters(params, variant, comorbidity):
+        """Apply both genetic and comorbidity effects"""
+        adjusted = params.copy()
+        
+        # Apply genetic variant
+        if variant in BIOCHEM_DB['variants']:
+            adjusted['Vmax'] *= BIOCHEM_DB['variants'][variant]
+            print(f"Applied {variant}-variant: {BIOCHEM_DB['variants'][variant]*100}% activity")
+            
+        # Apply comorbidity
+        if comorbidity in BIOCHEM_DB['comorbidities']:
+            adjusted['Vmax'] *= BIOCHEM_DB['comorbidities'][comorbidity]
+            print(f"Applied {comorbidity}: {BIOCHEM_DB['comorbidities'][comorbidity]*100}% activity")
+            
+        return adjusted
+
+    # Main program
+    print("="*60)
+    print("Butyrylcholinesterase Interaction Analyzer")
+    print("="*60)
+    
+    while True:
+        inputs = get_inputs()
+        if not inputs: continue
+        
+        substrate, variant, comorbidity, conc = inputs
+        params = BIOCHEM_DB['substrates'][substrate].copy()
+        
+        print("\nBase Parameters:")
+        for k, v in params.items():
+            if k != 'clinical_range': print(f"{k}: {v}")
+        
+        # Apply modifications
+        mod_params = adjust_parameters(params, variant, comorbidity)
+        velocity = calculate_velocity(mod_params, conc)
+        
+        # Display results
+        print("\nAdjusted Parameters:")
+        print(f"Vmax: {mod_params['Vmax']:.1f} μmol/min/mg")
+        print(f"Velocity: {velocity:.2f} μmol/min/mg")
+        
+        # Clinical warnings
+        low, high = params['clinical_range']
+        if conc < low: print(f"\n! Subtherapeutic (min {low} mM required) !")
+        if conc > high: print(f"\n! Toxic concentration (max {high} mM safe) !")
+        
+        if input("\nNew analysis? (y/n): ").lower() != 'y': break
+
+    print("\nAnalysis complete. Consult clinical guidelines.")
+
+if __name__ == "__main__":
+    bche_interaction_analyzer()
